@@ -1,0 +1,10 @@
+PASOS (una sola vez)
+1. En GitHub: New repository -> nombre tiempomdz-rayos -> PUBLIC -> Create.
+2. Subir estos 3 archivos respetando carpetas: glm_a_json.py, LEEME.txt y .github/workflows/rayos.yml
+   (en la web: Add file -> Upload files; la carpeta .github hay que arrastrarla entera).
+3. Pestaña Actions -> si pide, "I understand, enable". Elegir "rayos" -> Run workflow (prueba manual).
+4. Si sale verde, aparece la rama "data" con rayos.json. Abrir:
+   https://raw.githubusercontent.com/TU_USUARIO/tiempomdz-rayos/data/rayos.json
+   y pasarme esa dirección.
+Notas: se actualiza cada ~5 a 15 min (GitHub demora los horarios). En repos públicos GitHub pausa los programados tras 60 días sin actividad: hay que reactivarlos desde Actions.
+Este repo es aparte y público: NO subir ahí el código de la app, el keystore ni clave-privada.json.
