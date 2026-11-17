@@ -1,0 +1,39 @@
+name: goes19-vivos
+on:
+  workflow_dispatch:
+jobs:
+  vivos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: |
+          python - <<'PY'
+          import re, urllib.request, xml.etree.ElementTree as ET
+          from datetime import datetime, timezone, timedelta
+          B = 'noaa-goes19'
+          NS = {'s': 'http://s3.amazonaws.com/doc/2006-03-01/'}
+          def ls(pre, delim=True):
+              u = f'https://{B}.s3.amazonaws.com/?list-type=2&prefix={pre}' + ('&delimiter=/' if delim else '')
+              r = ET.fromstring(urllib.request.urlopen(u, timeout=40).read())
+              return ([p.text for p in r.findall('.//s:CommonPrefixes/s:Prefix', NS)] if delim
+                      else [k.text for k in r.findall('.//s:Contents/s:Key', NS)])
+          def inicio(k):
+              y, d, h, m, s = map(int, re.search(r'_s(\d{4})(\d{3})(\d{2})(\d{2})(\d{2})', k).groups())
+              return datetime(y, 1, 1, tzinfo=timezone.utc) + timedelta(days=d - 1, hours=h, minutes=m, seconds=s)
+          ahora = datetime.now(timezone.utc)
+          print('Ahora (UTC):', ahora.strftime('%Y-%m-%d %H:%M'))
+          for p in ['ABI-L2-RRQPEF', 'ABI-L2-ACHAF', 'ABI-L2-ACTPF', 'ABI-L2-CTPF', 'ABI-L2-DSIF',
+                    'ABI-L2-TPWF', 'ABI-L2-DMWF', 'ABI-L2-ACMF', 'ABI-L2-MCMIPF', 'ABI-L2-FDCF', 'GLM-L2-LCFA']:
+              try:
+                  pre = p + '/'
+                  for _ in range(3):
+                      sub = ls(pre)
+                      if not sub: break
+                      pre = sub[-1]
+                  ks = sorted(ls(pre, False), key=inicio)
+                  if not ks: print(p, '-> carpeta vacia', pre); continue
+                  t = inicio(ks[-1]); edad = (ahora - t).total_seconds() / 3600
+                  print(f'{p}: ultimo dato {t:%Y-%m-%d %H:%M} UTC, hace {edad:.1f} h', '(VIVO)' if edad < 2 else '(VIEJO)')
+              except Exception as e:
+                  print(p, '-> error', e)
+          PY
