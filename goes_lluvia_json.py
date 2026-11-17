@@ -88,12 +88,34 @@ def leer(key):
     ds.close()
     return cells, validos
 
+def prefijos(pre):
+    xml = get(f"https://{BUCKET}.s3.amazonaws.com/?list-type=2&delimiter=/&prefix={pre}")
+    ns = {'s': 'http://s3.amazonaws.com/doc/2006-03-01/'}
+    return [p.text for p in ET.fromstring(xml).findall('.//s:CommonPrefixes/s:Prefix', ns)]
+
+def diagnostico(ahora):
+    """Si no hay imágenes, muestra en el log qué hay realmente en el bucket (para ajustar el producto)."""
+    print('--- DIAGNÓSTICO ---', file=sys.stderr)
+    try:
+        ps = prefijos('ABI-L2-')
+        print('Productos ABI-L2 en', BUCKET + ':', ', '.join(p.rstrip('/') for p in ps), file=sys.stderr)
+        print('Los que parecen de lluvia:', [p for p in ps if 'RR' in p or 'RAIN' in p.upper()], file=sys.stderr)
+    except Exception as e: print('No pude listar productos:', e, file=sys.stderr)
+    try:
+        anios = prefijos(PRODUCTO + '/'); print(PRODUCTO, 'años:', anios, file=sys.stderr)
+        if anios:
+            dias = prefijos(anios[-1]); print('últimos días:', dias[-3:], file=sys.stderr)
+    except Exception as e: print('No pude listar', PRODUCTO, e, file=sys.stderr)
+    print('Hora UTC del servidor:', ahora, file=sys.stderr)
+
 def main(ruta):
     ahora = datetime.now(timezone.utc); keys = []; fallos = 0
     for h in (ahora - timedelta(hours=1), ahora):
         try: keys += listar(h)
         except Exception as e: fallos += 1; print('lista falló', h, e, file=sys.stderr)
-    if not keys: sys.exit('No encontré imágenes de lluvia en NOAA: no publico para no mostrar un "sin lluvia" falso')
+    if not keys:
+        diagnostico(ahora)
+        sys.exit('No encontré imágenes de lluvia en NOAA: no publico para no mostrar un "sin lluvia" falso')
     keys.sort(key=inicio); key = keys[-1]; t0 = inicio(key)
     edad = (ahora - t0).total_seconds() / 60
     if edad > MAX_EDAD_MIN: sys.exit(f'La última imagen tiene {edad:.0f} min: no publico')
